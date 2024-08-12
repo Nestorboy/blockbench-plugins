@@ -1,0 +1,32 @@
+{
+  "name": "texel_antialiasing",
+  "version": "1.0.0",
+  "author": "Nestorboy",
+  "description": "Adds anti-aliasing between texels in the model preview.",
+  "private": true,
+  "main": "index.js",
+  "license": "MIT",
+  "blockbenchConfig": {
+    "title": "Texel Anti-Aliasing",
+    "author": "Nestorboy",
+    "icon": "icon.png",
+    "description": "Adds anti-aliasing between texels in the model preview.",
+    "about": "This plugin aims to improve the visual fidelity of the preview models by adding some anti-aliasing between texels.\n\nThe anti-aliasing method is heavily inspired by t3ssel8r's video [\"Crafting a Better Shader for Pixel Art Upscaling\"](https://www.youtube.com/watch?v=d6tp43wZqps).",
+    "tags": ["Blockbench", "Shader"],
+    "version": "1.0.0",
+    "min_version": "4.9.0",
+    "max_version": "5.0.0",
+    "variant": "both"
+  },
+  "scripts": {
+    "build": "webpack",
+    "watch": "webpack --watch"
+  },
+  "devDependencies": {
+    "blockbench-types": "^4.10.0",
+    "ts-loader": "^9.5.1",
+    "typescript": "^4.9.5",
+    "webpack": "^5.88.2",
+    "webpack-cli": "^5.1.4"
+  }
+}
