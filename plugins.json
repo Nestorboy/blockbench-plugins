@@ -974,6 +974,7 @@
 		"max_version": "5.0.0",
 		"variant": "both",
 		"creation_date": "2024-08-10",
-		"new_repository_format": true
+		"new_repository_format": true,
+		"has_changelog": true
 	}
 }

@@ -1,0 +1,15 @@
+{
+  "1.0.0": {
+    "title": "1.0.0",
+    "author": "Nestorboy",
+    "date": "2024-08-12",
+    "categories": [
+      {
+        "title": "Features",
+        "list": [
+          "Initial release"
+        ]
+      }
+    ]
+  }
+}
