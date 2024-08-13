@@ -31,6 +31,7 @@ BBPlugin.register(name, Object.assign({},
                 action.delete();
             });
 
+            // @ts-expect-error
             Blockbench.removeListener('add_texture', addTextureEvent);
 
             applyAAShaderToAll(false);
