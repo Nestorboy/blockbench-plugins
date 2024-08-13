@@ -20,6 +20,7 @@
     "min_version": "4.9.0",
     "max_version": "5.0.0",
     "variant": "both",
+    "new_repository_format": true,
     "has_changelog": true
   },
   "scripts": {
