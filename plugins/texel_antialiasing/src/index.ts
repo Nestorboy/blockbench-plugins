@@ -18,6 +18,7 @@ BBPlugin.register(name, Object.assign({},
                 name: 'Weighted Center',
                 category: 'preview',
                 description: 'Adds a bias to reduce how much anti-aliasing there is, making it a bit less blurry.',
+                // @ts-expect-error
                 type: 'toggle',
                 value: 'true',
                 onChange: () => applyAAShaderToAll(true)
