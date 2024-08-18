@@ -82,17 +82,12 @@ function replacePreviewShaders(project: ModelProject, tex: Texture, useAntiAlias
 
     applyTextureChanges(tex.img.tex, useAntiAliasing);
 
+    let mat = project.materials[tex.uuid];
+
     const vertShader = getTexelVertProgram(useAntiAliasing);
     const fragShader = getTexelFragProgram(useAntiAliasing);
 
-    let mat = project.materials[tex.uuid];
-    mat.vertexShader = vertShader;
-    mat.fragmentShader = fragShader;
-
-    let resolution = new THREE.Vector4(width, height, 1 / width, 1 / height);
-    mat.uniforms.RESOLUTION = new THREE.Uniform(resolution);
-
-    mat.needsUpdate = true;
+    applyMaterialChanges(mat, vertShader, fragShader, width, height);
 }
 
 function replaceUvShaders(useAntiAliasing: boolean = true) {
@@ -106,13 +101,10 @@ function replaceUvShaders(useAntiAliasing: boolean = true) {
 
     applyTextureChanges(tex, useAntiAliasing);
 
-    mat.vertexShader = getUvTexelVertProgram(useAntiAliasing);
-    mat.fragmentShader = getUvTexelFragProgram(useAntiAliasing);
+    const vertShader : string = getUvTexelVertProgram(useAntiAliasing);
+    const fragShader : string = getUvTexelFragProgram(useAntiAliasing);
 
-    let resolution = new THREE.Vector4(width, height, 1 / width, 1 / height);
-    mat.uniforms.RESOLUTION = new THREE.Uniform(resolution);
-
-    mat.needsUpdate = true;
+    applyMaterialChanges(mat, vertShader, fragShader, width, height);
 }
 
 function applyTextureChanges(tex: THREE.Texture, useAntiAliasing: boolean = true) {
@@ -120,4 +112,14 @@ function applyTextureChanges(tex: THREE.Texture, useAntiAliasing: boolean = true
     tex.minFilter = filter;
     tex.magFilter = filter;
     tex.needsUpdate = true;
+}
+
+function applyMaterialChanges(mat: THREE.ShaderMaterial, vertShader : string, fragShader : string, width : number, height : number) {
+    mat.vertexShader = vertShader;
+    mat.fragmentShader = fragShader;
+
+    let resolution = new THREE.Vector4(width, height, 1 / width, 1 / height);
+    mat.uniforms.RESOLUTION = new THREE.Uniform(resolution);
+
+    mat.needsUpdate = true;
 }
