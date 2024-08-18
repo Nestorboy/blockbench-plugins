@@ -197,7 +197,6 @@ export function getUvTexelFragProgram(useAntiAliasing: boolean): string {
 }
 
 function getTexelAAFunction(): string {
-    console.log(settings.texel_aa_weight && settings.texel_aa_weight.value);
     return `
         // GLSL implementation of texel anti-aliasing function described by t3ssel8r:
         // https://www.youtube.com/watch?v=d6tp43wZqps
