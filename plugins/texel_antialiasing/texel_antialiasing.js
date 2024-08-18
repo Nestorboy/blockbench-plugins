@@ -11,7 +11,9 @@
 __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   getTexelFragProgram: () => (/* binding */ getTexelFragProgram),
-/* harmony export */   getTexelVertProgram: () => (/* binding */ getTexelVertProgram)
+/* harmony export */   getTexelVertProgram: () => (/* binding */ getTexelVertProgram),
+/* harmony export */   getUvTexelFragProgram: () => (/* binding */ getUvTexelFragProgram),
+/* harmony export */   getUvTexelVertProgram: () => (/* binding */ getUvTexelVertProgram)
 /* harmony export */ });
 function getTexelVertProgram(useAntiAliasing) {
     return `
@@ -97,17 +99,7 @@ function getTexelFragProgram(useAntiAliasing) {
         varying float light;
         varying float lift;
 
-        // GLSL implementation of texel anti-aliasing function described by t3ssel8r:
-        // https://www.youtube.com/watch?v=d6tp43wZqps
-        vec2 TexelAA(vec2 uv, vec4 resolution)
-        {
-            vec2 boxSize = clamp(fwidth(uv) * resolution.xy, vec2(1e-5), vec2(1.0));
-            vec2 tx = uv * resolution.xy - 0.5 * boxSize;
-            ${settings.texel_aa_weight && settings.texel_aa_weight.value ?
-        'vec2 offset = smoothstep(1.0 - boxSize, vec2(1.0), fract(tx)); // Weighted center.' :
-        'vec2 offset = clamp((fract(tx) - (1.0 - boxSize)) / boxSize, 0.0, 1.0); // Perfectly linear.'}
-            return (floor(tx) + 0.5 + offset) * resolution.zw;
-        }
+        ${getTexelAAFunction()}
 
         void main(void)
         {
@@ -135,6 +127,100 @@ function getTexelFragProgram(useAntiAliasing) {
                 gl_FragColor.r = gl_FragColor.r * 0.6;
                 gl_FragColor.g = gl_FragColor.g * 0.7;
             }
+        }`;
+}
+function getUvTexelVertProgram(useAntiAliasing) {
+    return `
+        attribute float highlight;
+
+        uniform bool SHADE;
+        uniform float DENSITY;
+
+        ${useAntiAliasing ? 'centroid' : ''} varying vec2 vUv;
+        varying float light;
+        varying float lift;
+
+        float AMBIENT = 0.1;
+        float XFAC = -0.05;
+        float ZFAC = 0.05;
+
+        void main()
+        {
+            if (SHADE) {
+                vec3 N = normalize( vec3( modelMatrix * vec4(normal, 0.0) ) );
+
+                light = (0.2 + abs(N.z) * 0.8) * (1.0-AMBIENT) + N.x*N.x * XFAC + N.y*N.y * ZFAC + AMBIENT;
+            } else {
+                light = 1.0;
+            }
+
+            if (highlight == 2.0) {
+                lift = 0.3;
+            } else if (highlight == 1.0) {
+                lift = 0.12;
+            } else {
+                lift = 0.0;
+            }
+
+            vUv = uv * DENSITY;
+            vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
+            gl_Position = projectionMatrix * mvPosition;
+        }`;
+}
+function getUvTexelFragProgram(useAntiAliasing) {
+    return `
+        #ifdef GL_ES
+        precision ${isApp ? 'highp' : 'mediump'} float;
+        #endif
+
+        uniform sampler2D map;
+
+        uniform bool SHADE;
+
+        // x: width
+        // y: height
+        // z: 1.0 / width
+        // w: 1.0 / height
+        uniform vec4 RESOLUTION;
+
+        ${useAntiAliasing ? 'centroid' : ''} varying vec2 vUv;
+        varying float light;
+        varying float lift;
+
+        ${getTexelAAFunction()}
+
+        void main(void)
+        {
+            vec2 uv = ${useAntiAliasing ? 'TexelAA(vUv, RESOLUTION)' : 'vUv'};
+
+            vec4 color = texture2D(map, uv);
+            gl_FragColor = color;
+            return;
+
+            if (color.a < 0.01) discard;
+            ${useAntiAliasing ? 'color.rgb /= color.a;' : ''}
+
+            gl_FragColor = vec4(lift + color.rgb * light, color.a);
+
+            if (lift > 0.2) {
+                gl_FragColor.r = gl_FragColor.r * 0.6;
+                gl_FragColor.g = gl_FragColor.g * 0.7;
+            }
+        }`;
+}
+function getTexelAAFunction() {
+    let weighted = settings.texel_aa_weight && settings.texel_aa_weight.value;
+    return `
+        // GLSL implementation of texel anti-aliasing function described by t3ssel8r:
+        // https://www.youtube.com/watch?v=d6tp43wZqps
+        vec2 TexelAA(vec2 uv, vec4 resolution)
+        {
+            vec2 boxSize = clamp(fwidth(uv) * resolution.xy, vec2(1e-5), vec2(1.0));
+            vec2 tx = uv * resolution.xy - 0.5 * boxSize;
+            ${weighted ?
+        'vec2 offset = smoothstep(1.0 - boxSize, vec2(1.0), fract(tx)); // Weighted center.' :
+        'vec2 offset = clamp((fract(tx) - (1.0 - boxSize)) / boxSize, 0.0, 1.0); // Perfectly linear.'}
+            return (floor(tx) + 0.5 + offset) * resolution.zw;
         }`;
 }
 
@@ -228,9 +314,9 @@ BBPlugin.register(name, Object.assign({}, blockbenchConfig, {
             // @ts-expect-error
             type: 'toggle',
             value: 'true',
-            onChange: () => applyAAShaderToAll(true)
+            onChange: () => replaceShaders(true)
         }));
-        applyAAShaderToAll(true);
+        replaceShaders(true);
     },
     onunload() {
         deletables.forEach(action => {
@@ -238,47 +324,70 @@ BBPlugin.register(name, Object.assign({}, blockbenchConfig, {
         });
         // @ts-expect-error
         Blockbench.removeListener('add_texture', addTextureEvent);
-        applyAAShaderToAll(false);
+        replaceShaders(false);
     }
 }));
 function addTextureEvent(data) {
     let tex = data.texture;
-    applyAAShaderOnTextureLoad(Project, tex);
+    replacePreviewShaderOnTextureLoad(Project, tex);
 }
-function applyAAShaderToAll(useAntiAliasing) {
+function replaceShaders(useAntiAliasing) {
+    replaceAllPreviewShaders(useAntiAliasing);
+    replaceUvShaders(useAntiAliasing);
+}
+function replaceAllPreviewShaders(useAntiAliasing) {
     ModelProject === null || ModelProject === void 0 ? void 0 : ModelProject.all.forEach(project => {
         if (!project)
             return;
-        applyAAShaderToProject(useAntiAliasing, project);
+        replacePreviewShadersInProject(useAntiAliasing, project);
     });
 }
-function applyAAShaderToProject(useAntiAliasing, project) {
+function replacePreviewShadersInProject(useAntiAliasing, project) {
     project.textures.forEach(tex => {
-        applyAAShader(project, tex, useAntiAliasing);
+        replacePreviewShaders(project, tex, useAntiAliasing);
     });
 }
-function applyAAShaderOnTextureLoad(project, tex, useAntiAliasing = true) {
+function replacePreviewShaderOnTextureLoad(project, tex, useAntiAliasing = true) {
     // Append to possibly assigned onload callback.
     tex.img.onload = (pre => {
         return () => {
             pre && pre.apply(this, arguments);
-            applyAAShader(project, tex, useAntiAliasing);
+            replacePreviewShaders(project, tex, useAntiAliasing);
         };
     })(tex.img.onload);
 }
-function applyAAShader(project, tex, useAntiAliasing = true) {
-    const filter = useAntiAliasing ? THREE.LinearFilter : THREE.NearestFilter;
+function replacePreviewShaders(project, tex, useAntiAliasing = true) {
     let width = tex.width;
     let height = tex.height;
     if (width === 0 || height === 0)
         return;
-    let threeTex = tex.img.tex;
-    threeTex.minFilter = filter;
-    threeTex.magFilter = filter;
-    threeTex.needsUpdate = true;
+    applyTextureChanges(tex.img.tex, useAntiAliasing);
+    let mat = project.materials[tex.uuid];
     const vertShader = (0,_shaders__WEBPACK_IMPORTED_MODULE_1__.getTexelVertProgram)(useAntiAliasing);
     const fragShader = (0,_shaders__WEBPACK_IMPORTED_MODULE_1__.getTexelFragProgram)(useAntiAliasing);
-    let mat = project.materials[tex.uuid];
+    applyMaterialChanges(mat, vertShader, fragShader, width, height);
+}
+function replaceUvShaders(useAntiAliasing = true) {
+    let mat = Canvas.uvHelperMaterial;
+    if (!mat)
+        return;
+    let tex = mat.uniforms.map.value;
+    let width = tex.image.width;
+    let height = tex.image.height;
+    if (width === 0 || height === 0)
+        return;
+    applyTextureChanges(tex, useAntiAliasing);
+    const vertShader = (0,_shaders__WEBPACK_IMPORTED_MODULE_1__.getUvTexelVertProgram)(useAntiAliasing);
+    const fragShader = (0,_shaders__WEBPACK_IMPORTED_MODULE_1__.getUvTexelFragProgram)(useAntiAliasing);
+    applyMaterialChanges(mat, vertShader, fragShader, width, height);
+}
+function applyTextureChanges(tex, useAntiAliasing = true) {
+    const filter = useAntiAliasing ? THREE.LinearFilter : THREE.NearestFilter;
+    tex.minFilter = filter;
+    tex.magFilter = filter;
+    tex.needsUpdate = true;
+}
+function applyMaterialChanges(mat, vertShader, fragShader, width, height) {
     mat.vertexShader = vertShader;
     mat.fragmentShader = fragShader;
     let resolution = new THREE.Vector4(width, height, 1 / width, 1 / height);
