@@ -197,6 +197,7 @@ export function getUvTexelFragProgram(useAntiAliasing: boolean): string {
 }
 
 function getTexelAAFunction(): string {
+    let weighted = settings.texel_aa_weight && settings.texel_aa_weight.value;
     return `
         // GLSL implementation of texel anti-aliasing function described by t3ssel8r:
         // https://www.youtube.com/watch?v=d6tp43wZqps
@@ -204,7 +205,7 @@ function getTexelAAFunction(): string {
         {
             vec2 boxSize = clamp(fwidth(uv) * resolution.xy, vec2(1e-5), vec2(1.0));
             vec2 tx = uv * resolution.xy - 0.5 * boxSize;
-            ${settings.texel_aa_weight && settings.texel_aa_weight.value ?
+            ${weighted ?
                 'vec2 offset = smoothstep(1.0 - boxSize, vec2(1.0), fract(tx)); // Weighted center.' :
                 'vec2 offset = clamp((fract(tx) - (1.0 - boxSize)) / boxSize, 0.0, 1.0); // Perfectly linear.'
             }
