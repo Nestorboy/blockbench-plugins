@@ -80,11 +80,7 @@ function replacePreviewShaders(project: ModelProject, tex: Texture, useAntiAlias
     let height = tex.height;
     if (width === 0 || height === 0) return;
 
-    let threeTex = tex.img.tex;
-    const filter = useAntiAliasing ? THREE.LinearFilter : THREE.NearestFilter;
-    threeTex.minFilter = filter;
-    threeTex.magFilter = filter;
-    threeTex.needsUpdate = true;
+    applyTextureChanges(tex.img.tex, useAntiAliasing);
 
     const vertShader = getTexelVertProgram(useAntiAliasing);
     const fragShader = getTexelFragProgram(useAntiAliasing);
@@ -108,10 +104,7 @@ function replaceUvShaders(useAntiAliasing: boolean = true) {
     let height = tex.image.height;
     if (width === 0 || height === 0) return;
 
-    const filter = useAntiAliasing ? THREE.LinearFilter : THREE.NearestFilter;
-    tex.minFilter = filter;
-    tex.magFilter = filter;
-    tex.needsUpdate = true;
+    applyTextureChanges(tex, useAntiAliasing);
 
     mat.vertexShader = getUvTexelVertProgram(useAntiAliasing);
     mat.fragmentShader = getUvTexelFragProgram(useAntiAliasing);
@@ -120,4 +113,11 @@ function replaceUvShaders(useAntiAliasing: boolean = true) {
     mat.uniforms.RESOLUTION = new THREE.Uniform(resolution);
 
     mat.needsUpdate = true;
+}
+
+function applyTextureChanges(tex: THREE.Texture, useAntiAliasing: boolean = true) {
+    const filter = useAntiAliasing ? THREE.LinearFilter : THREE.NearestFilter;
+    tex.minFilter = filter;
+    tex.magFilter = filter;
+    tex.needsUpdate = true;
 }
