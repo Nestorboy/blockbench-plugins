@@ -110,7 +110,8 @@ function replaceUvShaders(useAntiAliasing: boolean = true) {
 function applyTextureChanges(tex: THREE.Texture, useAntiAliasing: boolean = true) {
     const filter = useAntiAliasing ? THREE.LinearFilter : THREE.NearestFilter;
     tex.minFilter = filter;
-    tex.magFilter = filter;
+    tex.magFilter = filter
+
     tex.needsUpdate = true;
 }
 
