@@ -21,10 +21,10 @@ BBPlugin.register(name, Object.assign({},
                 // @ts-expect-error
                 type: 'toggle',
                 value: 'true',
-                onChange: () => applyAAShaderToAll(true)
+                onChange: () => replaceAllPreviewShaders(true)
             }));
 
-            applyAAShaderToAll(true);
+            replaceAllPreviewShaders(true);
         },
 
         onunload() {
@@ -35,42 +35,42 @@ BBPlugin.register(name, Object.assign({},
             // @ts-expect-error
             Blockbench.removeListener('add_texture', addTextureEvent);
 
-            applyAAShaderToAll(false);
+            replaceAllPreviewShaders(false);
         }
     }
 ));
 
 function addTextureEvent(data: {texture: Texture}) {
     let tex: Texture = data.texture;
-    applyAAShaderOnTextureLoad(Project, tex);
+    replacePreviewShaderOnTextureLoad(Project, tex);
 }
 
-function applyAAShaderToAll(useAntiAliasing: boolean): void {
+function replaceAllPreviewShaders(useAntiAliasing: boolean): void {
     ModelProject?.all.forEach(project => {
         if (!project) return;
 
-        applyAAShaderToProject(useAntiAliasing, project);
+        replacePreviewShadersInProject(useAntiAliasing, project);
     });
 }
 
-function applyAAShaderToProject(useAntiAliasing: boolean, project: ModelProject) {
+function replacePreviewShadersInProject(useAntiAliasing: boolean, project: ModelProject) {
     project.textures.forEach(tex => {
-        applyAAShader(project, tex, useAntiAliasing);
+        replacePreviewShaders(project, tex, useAntiAliasing);
     })
 }
 
-function applyAAShaderOnTextureLoad(project: ModelProject, tex: Texture, useAntiAliasing: boolean = true) {
+function replacePreviewShaderOnTextureLoad(project: ModelProject, tex: Texture, useAntiAliasing: boolean = true) {
     // Append to possibly assigned onload callback.
     tex.img.onload = (pre => {
         return () => {
             pre && pre.apply(this, arguments);
 
-            applyAAShader(project, tex, useAntiAliasing);
+            replacePreviewShaders(project, tex, useAntiAliasing);
         }
     })(tex.img.onload);
 }
 
-function applyAAShader(project: ModelProject, tex: Texture, useAntiAliasing: boolean = true) {
+function replacePreviewShaders(project: ModelProject, tex: Texture, useAntiAliasing: boolean = true) {
     const filter = useAntiAliasing ? THREE.LinearFilter : THREE.NearestFilter;
 
     let width = tex.width;
