@@ -21,14 +21,10 @@ BBPlugin.register(name, Object.assign({},
                 // @ts-expect-error
                 type: 'toggle',
                 value: 'true',
-                onChange: () => {
-                    replaceAllPreviewShaders(true);
-                    replaceUvShaders(true);
-                }
+                onChange: () => replaceShaders(true)
             }));
 
-            replaceAllPreviewShaders(true);
-            replaceUvShaders(true);
+            replaceShaders(true);
         },
 
         onunload() {
@@ -39,8 +35,7 @@ BBPlugin.register(name, Object.assign({},
             // @ts-expect-error
             Blockbench.removeListener('add_texture', addTextureEvent);
 
-            replaceAllPreviewShaders(false);
-            replaceUvShaders(false);
+            replaceShaders(false);
         }
     }
 ));
@@ -48,6 +43,11 @@ BBPlugin.register(name, Object.assign({},
 function addTextureEvent(data: {texture: Texture}) {
     let tex: Texture = data.texture;
     replacePreviewShaderOnTextureLoad(Project, tex);
+}
+
+function replaceShaders(useAntiAliasing: boolean) {
+    replaceAllPreviewShaders(useAntiAliasing);
+    replaceUvShaders(useAntiAliasing);
 }
 
 function replaceAllPreviewShaders(useAntiAliasing: boolean): void {
