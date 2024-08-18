@@ -61,6 +61,60 @@ export function getTexelVertProgram(useAntiAliasing: boolean): string {
         }`;
 }
 
+export function getTexelFragProgram(useAntiAliasing: boolean): string {
+    return `
+        #ifdef GL_ES
+        precision ${isApp ? 'highp' : 'mediump'} float;
+        #endif
+
+        uniform sampler2D map;
+
+        uniform bool SHADE;
+        uniform bool EMISSIVE;
+        uniform vec3 LIGHTCOLOR;
+
+        // x: width
+        // y: height
+        // z: 1.0 / width
+        // w: 1.0 / height
+        uniform vec4 RESOLUTION;
+
+        ${useAntiAliasing ? 'centroid' : ''} varying vec2 vUv;
+        varying float light;
+        varying float lift;
+
+        ${getTexelAAFunction()}
+
+        void main(void)
+        {
+            vec2 uv = ${useAntiAliasing ? 'TexelAA(vUv, RESOLUTION)' : 'vUv'};
+
+            vec4 color = texture2D(map, uv);
+
+            if (color.a < 0.01) discard;
+            ${useAntiAliasing ? 'color.rgb /= color.a;' : ''}
+
+            if (EMISSIVE == false) {
+                gl_FragColor = vec4(lift + color.rgb * light, color.a);
+                gl_FragColor.r = gl_FragColor.r * LIGHTCOLOR.r;
+                gl_FragColor.g = gl_FragColor.g * LIGHTCOLOR.g;
+                gl_FragColor.b = gl_FragColor.b * LIGHTCOLOR.b;
+            } else {
+                float light_r = (light * LIGHTCOLOR.r) + (1.0 - light * LIGHTCOLOR.r) * (1.0 - color.a);
+                float light_g = (light * LIGHTCOLOR.g) + (1.0 - light * LIGHTCOLOR.g) * (1.0 - color.a);
+                float light_b = (light * LIGHTCOLOR.b) + (1.0 - light * LIGHTCOLOR.b) * (1.0 - color.a);
+                float alpha = ${useAntiAliasing ? 'color.a' : '1.0'};
+                gl_FragColor = vec4(lift + color.r * light_r, lift + color.g * light_g, lift + color.b * light_b, alpha);
+            }
+
+            if (lift > 0.2) {
+                gl_FragColor.r = gl_FragColor.r * 0.6;
+                gl_FragColor.g = gl_FragColor.g * 0.7;
+            }
+        }`;
+}
+
+
 export function getUvTexelVertProgram(useAntiAliasing: boolean): string {
     return `
         attribute float highlight;
@@ -134,59 +188,6 @@ export function getUvTexelFragProgram(useAntiAliasing: boolean): string {
             ${useAntiAliasing ? 'color.rgb /= color.a;' : ''}
 
             gl_FragColor = vec4(lift + color.rgb * light, color.a);
-
-            if (lift > 0.2) {
-                gl_FragColor.r = gl_FragColor.r * 0.6;
-                gl_FragColor.g = gl_FragColor.g * 0.7;
-            }
-        }`;
-}
-
-export function getTexelFragProgram(useAntiAliasing: boolean): string {
-    return `
-        #ifdef GL_ES
-        precision ${isApp ? 'highp' : 'mediump'} float;
-        #endif
-
-        uniform sampler2D map;
-
-        uniform bool SHADE;
-        uniform bool EMISSIVE;
-        uniform vec3 LIGHTCOLOR;
-
-        // x: width
-        // y: height
-        // z: 1.0 / width
-        // w: 1.0 / height
-        uniform vec4 RESOLUTION;
-
-        ${useAntiAliasing ? 'centroid' : ''} varying vec2 vUv;
-        varying float light;
-        varying float lift;
-
-        ${getTexelAAFunction()}
-
-        void main(void)
-        {
-            vec2 uv = ${useAntiAliasing ? 'TexelAA(vUv, RESOLUTION)' : 'vUv'};
-
-            vec4 color = texture2D(map, uv);
-
-            if (color.a < 0.01) discard;
-            ${useAntiAliasing ? 'color.rgb /= color.a;' : ''}
-
-            if (EMISSIVE == false) {
-                gl_FragColor = vec4(lift + color.rgb * light, color.a);
-                gl_FragColor.r = gl_FragColor.r * LIGHTCOLOR.r;
-                gl_FragColor.g = gl_FragColor.g * LIGHTCOLOR.g;
-                gl_FragColor.b = gl_FragColor.b * LIGHTCOLOR.b;
-            } else {
-                float light_r = (light * LIGHTCOLOR.r) + (1.0 - light * LIGHTCOLOR.r) * (1.0 - color.a);
-                float light_g = (light * LIGHTCOLOR.g) + (1.0 - light * LIGHTCOLOR.g) * (1.0 - color.a);
-                float light_b = (light * LIGHTCOLOR.b) + (1.0 - light * LIGHTCOLOR.b) * (1.0 - color.a);
-                float alpha = ${useAntiAliasing ? 'color.a' : '1.0'};
-                gl_FragColor = vec4(lift + color.r * light_r, lift + color.g * light_g, lift + color.b * light_b, alpha);
-            }
 
             if (lift > 0.2) {
                 gl_FragColor.r = gl_FragColor.r * 0.6;
