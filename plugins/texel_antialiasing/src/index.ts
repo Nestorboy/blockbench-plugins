@@ -1,5 +1,5 @@
 import packageJson from './package.json';
-import { getTexelVertProgram, getTexelFragProgram } from './shaders';
+import { getTexelVertProgram, getTexelFragProgram, getUvTexelVertProgram, getUvTexelFragProgram } from './shaders';
 
 const {name: name, blockbenchConfig } = packageJson;
 
@@ -21,10 +21,14 @@ BBPlugin.register(name, Object.assign({},
                 // @ts-expect-error
                 type: 'toggle',
                 value: 'true',
-                onChange: () => replaceAllPreviewShaders(true)
+                onChange: () => {
+                    replaceAllPreviewShaders(true);
+                    replaceUvShaders(true);
+                }
             }));
 
             replaceAllPreviewShaders(true);
+            replaceUvShaders(true);
         },
 
         onunload() {
@@ -36,6 +40,7 @@ BBPlugin.register(name, Object.assign({},
             Blockbench.removeListener('add_texture', addTextureEvent);
 
             replaceAllPreviewShaders(false);
+            replaceUvShaders(false);
         }
     }
 ));
@@ -88,6 +93,29 @@ function replacePreviewShaders(project: ModelProject, tex: Texture, useAntiAlias
     let mat = project.materials[tex.uuid];
     mat.vertexShader = vertShader;
     mat.fragmentShader = fragShader;
+
+    let resolution = new THREE.Vector4(width, height, 1 / width, 1 / height);
+    mat.uniforms.RESOLUTION = new THREE.Uniform(resolution);
+
+    mat.needsUpdate = true;
+}
+
+function replaceUvShaders(useAntiAliasing: boolean = true) {
+    let mat = Canvas.uvHelperMaterial;
+    if (!mat) return;
+
+    let tex : THREE.Texture = mat.uniforms.map.value;
+    let width = tex.image.width;
+    let height = tex.image.height;
+    if (width === 0 || height === 0) return;
+
+    const filter = useAntiAliasing ? THREE.LinearFilter : THREE.NearestFilter;
+    tex.minFilter = filter;
+    tex.magFilter = filter;
+    tex.needsUpdate = true;
+
+    mat.vertexShader = getUvTexelVertProgram(useAntiAliasing);
+    mat.fragmentShader = getUvTexelFragProgram(useAntiAliasing);
 
     let resolution = new THREE.Vector4(width, height, 1 / width, 1 / height);
     mat.uniforms.RESOLUTION = new THREE.Uniform(resolution);
