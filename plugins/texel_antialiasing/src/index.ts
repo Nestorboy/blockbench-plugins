@@ -76,13 +76,12 @@ function replacePreviewShaderOnTextureLoad(project: ModelProject, tex: Texture, 
 }
 
 function replacePreviewShaders(project: ModelProject, tex: Texture, useAntiAliasing: boolean = true) {
-    const filter = useAntiAliasing ? THREE.LinearFilter : THREE.NearestFilter;
-
     let width = tex.width;
     let height = tex.height;
     if (width === 0 || height === 0) return;
 
     let threeTex = tex.img.tex;
+    const filter = useAntiAliasing ? THREE.LinearFilter : THREE.NearestFilter;
     threeTex.minFilter = filter;
     threeTex.magFilter = filter;
     threeTex.needsUpdate = true;
